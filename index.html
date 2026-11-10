@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Visite virtuelle 360° de Mon Chou, pâtisserie de choux rue Montorgueil, Paris 2e.">
+<title>Mon Chou 360</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
+<style>
+/* Layout: panorama 360 plein écran, marque en haut à gauche, plan en haut à droite, carte d'étape en bas. Univers unique (charte Mon Chou). */
+:root{
+  --bord:#70020f;
+  --pink:#fedee1;
+  --rose:#f8c0c5;
+  --ink:#2a0207;
+  --glass:rgba(112,2,15,.9);
+  --display:'Anton','Oswald','Impact',sans-serif;
+  --body:'DM Sans','Helvetica Neue',Arial,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--ink);font-family:var(--body);overflow:hidden}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden;background:var(--ink)}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#c.dragging{cursor:grabbing}
+.brand{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:calc(16px + env(safe-area-inset-left,0px));color:var(--pink);pointer-events:none;background:var(--glass);padding:10px 14px 9px;border-radius:12px;box-shadow:0 8px 24px rgba(42,2,7,.3)}
+.brand .mark{font-family:var(--display);font-size:clamp(24px,3.2vw,36px);line-height:.9;letter-spacing:.01em}
+.brand .sub{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-top:6px;color:var(--rose)}
+.map{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:calc(16px + env(safe-area-inset-right,0px));width:230px;background:var(--glass);border-radius:12px;padding:10px 10px 8px;box-shadow:0 8px 24px rgba(42,2,7,.3)}
+.map .t{display:flex;justify-content:space-between;align-items:baseline;color:var(--pink);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin:0 2px 6px}
+.map .t span:last-child{font-weight:500;letter-spacing:.04em;text-transform:none;opacity:.8;font-variant-numeric:tabular-nums}
+.map svg{display:block;width:100%;height:auto}
+.map .stop{cursor:pointer}
+.map .stop:hover circle,.map .stop:focus-visible circle{fill:#fff}
+.card{position:absolute;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(430px,calc(100% - 32px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)));background:var(--glass);color:var(--pink);border-radius:14px;padding:14px 16px 12px;box-shadow:0 12px 32px rgba(42,2,7,.35);display:grid;gap:9px}
+.card .row{display:flex;align-items:baseline;gap:12px}
+.card .step{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--rose);font-variant-numeric:tabular-nums;white-space:nowrap}
+.card h1{margin:0;font-family:var(--display);font-weight:400;font-size:27px;line-height:1;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.card p{margin:0;font-size:14px;line-height:1.5;max-width:60ch;color:#fff1f2}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-size:13px;font-weight:700;border:0;border-radius:999px;padding:9px 14px;cursor:pointer;background:var(--pink);color:var(--bord);transition:transform .15s,background .15s}
+.btn:hover{background:#fff}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:transparent;color:var(--pink);box-shadow:inset 0 0 0 1.5px rgba(254,222,225,.6)}
+.btn.ghost:hover{background:rgba(254,222,225,.12)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:focus-visible,.chip:focus-visible,.lbl:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;scrollbar-color:rgba(254,222,225,.4) transparent}
+.chip{flex:0 0 auto;font:inherit;font-size:12px;font-weight:500;border:0;border-radius:999px;padding:6px 10px;background:rgba(254,222,225,.14);color:var(--pink);cursor:pointer;white-space:nowrap}
+.chip:hover{background:rgba(254,222,225,.26)}
+.chip.on{background:var(--pink);color:var(--bord);font-weight:700}
+#labels{position:absolute;inset:0;pointer-events:none}
+.lbl{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;font:inherit;font-size:13px;font-weight:700;border:0;border-radius:999px;padding:7px 13px 7px 8px;background:rgba(254,222,225,.94);color:var(--bord);box-shadow:0 6px 18px rgba(42,2,7,.35);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:background .15s}
+.lbl::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--bord);box-shadow:0 0 0 3px rgba(112,2,15,.25);animation:pulse 1.8s ease-in-out infinite}
+.lbl:hover{background:#fff}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(112,2,15,0)}}
+.hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(42,2,7,.75);color:#fff;font-size:14px;font-weight:500;padding:12px 18px;border-radius:999px;pointer-events:none;transition:opacity .6s;text-align:center;max-width:calc(100% - 48px)}
+.hint.off{opacity:0}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--pink);color:var(--bord);font-family:var(--display);font-size:32px;letter-spacing:.02em;transition:opacity .5s}
+#loading.off{opacity:0;pointer-events:none}
+#loading small{display:block;font-family:var(--body);font-size:13px;letter-spacing:.08em;text-transform:uppercase;text-align:center;margin-top:8px}
+@media (max-width:640px){
+  .map{width:140px;padding:8px 8px 6px}
+  .map .t span:last-child{display:none}
+  .card{padding:12px 12px 10px;gap:8px}
+  .card h1{font-size:22px}
+  .card p{font-size:13px}
+  .brand .sub{display:none}
+}
+@media (max-height:560px){ .card p{display:none} .chips{display:none} }
+@media (prefers-reduced-motion:reduce){ .hint,#loading{transition:none} .lbl::before{animation:none} }
+body{margin:0}</style>
+
+</head>
+<body>
+<div id="app">
+  <canvas id="c" aria-label="Panorama 360 degrés de Mon Chou"></canvas>
+  <div id="labels"></div>
+  <header class="brand">
+    <div class="mark">MON CHOU</div>
+    <div class="sub">Visite 360° · 76 m² · rue Montorgueil</div>
+  </header>
+  <aside class="map" aria-label="Plan du local">
+    <div class="t"><span>Plan V2</span><span>12 m × 6,4 m</span></div>
+    <svg id="map" viewBox="-3.6 -0.5 16.1 7.4" role="img" aria-label="Plan d'aménagement V2"></svg>
+  </aside>
+  <section class="card" aria-live="polite">
+    <div class="row"><span class="step" id="step">1 / 9</span><h1 id="name">Rue Montorgueil</h1></div>
+    <p id="desc"></p>
+    <div class="ctrls">
+      <button class="btn ghost" id="prev" type="button">← Précédent</button>
+      <button class="btn" id="next" type="button">Suivant →</button>
+      <button class="btn ghost" id="play" type="button">▶ Visite auto</button>
+    </div>
+    <nav class="chips" id="chips" aria-label="Étapes de la visite"></nav>
+  </section>
+  <div class="hint" id="hint">Glisse pour regarder tout autour · Clique sur une étiquette pour te déplacer</div>
+  <div id="loading"><div>MON CHOU<small>Chargement de la visite…</small></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = $('#c');
+const EYE = 1.6, FAR = 40;
+
+/* Points de vue : position dans le plan (x depuis la façade, z depuis le mur nord), direction du centre du panorama */
+const STOPS = [
+  {n:'Rue Montorgueil', f:'p0_rue', p:[-3.2,3.2], look:[1,0], d:"La façade bordeaux sur la rue piétonne du 2e, l'enseigne au logo Mon Chou et la vitrine sur toute la largeur : on voit les choux depuis la rue."},
+  {n:"L'entrée", f:'p1_entree', p:[0.9,3.2], look:[1,0], d:"Accès de plain-pied, porte de 90 cm (norme PMR). De chaque côté, un bar en vitrine avec 4 tabourets face à la rue."},
+  {n:'La salle', f:'p2_salle', p:[2.4,3.2], look:[0,-1], d:"22 couverts : banquettes en velours bordeaux, tables rondes en marbre et chaises roses. La carte des choux est affichée près du comptoir."},
+  {n:'Le comptoir', f:'p3_comptoir', p:[3.6,2.9], look:[1,0], d:"Comptoir en zellige framboise et vitrine réfrigérée : en bas les choux sucrés (vanille, chocolat, fraise, café, citron, tatin, érable), en haut les salés du midi."},
+  {n:'Côté comptoir', f:'p4_cote', p:[5.15,2.7], look:[-1,0], d:"Poste café, caisse et passe vers le labo. La desserte récupère la vaisselle sale, qui part directement à la plonge par la porte de service."},
+  {n:'Garnissage', f:'p5_garn', p:[7.2,4.0], look:[-1,-0.2], d:"Zone propre de 8 m². Les choux sont garnis et dressés à la minute face à la vitre : les clients voient le travail depuis la boutique."},
+  {n:'Laboratoire', f:'p6_labo', p:[9.25,2.6], look:[1,0], d:"Couloir propre de 1,2 m. En face, pâte et cuisson (2 fours ventilés, batteur). À droite les crèmes et la cellule de refroidissement, à gauche la réception."},
+  {n:'Réception', f:'p7_recep', p:[11.15,0.8], look:[-1,0.2], d:"Livraisons par la porte arrière, contrôle des températures à réception, armoire froide et stock sec (farines, sucres, emballages)."},
+  {n:'Plonge et déchets', f:'p8_plonge', p:[7.6,5.3], look:[-1,0.3], d:"Circuit sale séparé du propre : plonge avec lave-vaisselle à capot, puis local déchets fermé avec tri sélectif."}
+];
+/* liens : [a, b, point de passage (porte) optionnel] */
+const LINKS = [[0,1,[0,3.2]],[1,2],[1,3],[2,3],[3,4,[4.55,0.6]],[4,5,[5.86,4.15]],[5,6,[8.6,3.1]],[6,7,[9.8,0.95]],[6,8,[9.2,4.6]],[4,8,[5.86,5.92]]];
+const adj = STOPS.map(()=>[]);
+LINKS.forEach(([a,b,v])=>{ adj[a].push({to:b,via:v}); adj[b].push({to:a,via:v}); });
+const wrap=a=>{ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; };
+const yawOf=(dx,dz)=>Math.atan2(-dx,-dz);            /* lacet caméra pour regarder vers (dx,dz) du plan */
+STOPS.forEach(s=>s.phi=yawOf(...s.look));
+
+/* ---------- Rendu ---------- */
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.autoClear = false;
+const camera = new THREE.PerspectiveCamera(75,1,0.03,200);
+camera.rotation.order = 'YXZ';
+const views = STOPS.map(()=>null);
+const loader = new THREE.TextureLoader();
+const SEG_W = 256, SEG_H = 128;
+function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; }); }
+function build(i, tex, depthImg){
+  const s=STOPS[i];
+  const geo = new THREE.SphereGeometry(1, SEG_W, SEG_H); geo.scale(-1,1,1);
+  const D = new Float32Array(geo.attributes.position.count);
+  if(depthImg){
+    const cv=document.createElement('canvas'); cv.width=depthImg.width; cv.height=depthImg.height;
+    const cx=cv.getContext('2d'); cx.drawImage(depthImg,0,0);
+    const px=cx.getImageData(0,0,cv.width,cv.height).data, W=cv.width, Hh=cv.height;
+    const pos=geo.attributes.position, uv=geo.attributes.uv;
+    for(let k=0;k<pos.count;k++){
+      const u=uv.getX(k), v=uv.getY(k);
+      const x=Math.min(W-1,Math.max(0,Math.round(u*(W-1)))), y=Math.min(Hh-1,Math.max(0,Math.round((1-v)*(Hh-1))));
+      const o=(y*W+x)*4; let d=(px[o]*256+px[o+1])/65535*FAR; if(!(d>0.2)) d=FAR; d=Math.min(d,FAR);
+      D[k]=d; pos.setXYZ(k, pos.getX(k)*d, pos.getY(k)*d, pos.getZ(k)*d);
+    }
+    pos.needsUpdate=true;
+  } else { const pos=geo.attributes.position; for(let k=0;k<pos.count;k++){ pos.setXYZ(k,pos.getX(k)*20,pos.getY(k)*20,pos.getZ(k)*20); D[k]=20; } }
+  /* coupe les triangles étirés aux bords des objets pour éviter les traînées pendant le déplacement */
+  const idx=geo.index.array, keep=[];
+  for(let t=0;t<idx.length;t+=3){ const a=D[idx[t]], b=D[idx[t+1]], c=D[idx[t+2]]; const mx=Math.max(a,b,c), mn=Math.min(a,b,c); if(mx/mn<1.35 || mx-mn<0.12) keep.push(idx[t],idx[t+1],idx[t+2]); }
+  const geoT = geo.clone(); geoT.setIndex(keep);
+  const mat=new THREE.MeshBasicMaterial({map:tex, transparent:true, depthTest:true, depthWrite:true, side:THREE.FrontSide});
+  const matFull=new THREE.MeshBasicMaterial({map:tex, transparent:false, depthTest:true, depthWrite:true});
+  const scene=new THREE.Scene();
+  const meshT=new THREE.Mesh(geoT, mat), meshF=new THREE.Mesh(geo, matFull);
+  for(const m of [meshT, meshF]){ m.rotation.y = -Math.PI/2 + s.phi; m.position.set(s.p[0],0,s.p[1]); }
+  scene.add(meshF);
+  const sceneT=new THREE.Scene(); sceneT.add(meshT);
+  return {scene, sceneT, mat, matFull, depth:{D, geo}, ready:true};
+}
+function load(i){
+  if(views[i]) return views[i].p;
+  const s=STOPS[i];
+  const p = Promise.all([
+    new Promise(res=>loader.load('pano/'+s.f+'.jpg', t=>{ t.encoding=THREE.sRGBEncoding; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); t.minFilter=THREE.LinearFilter; t.generateMipmaps=false; res(t); }, undefined, ()=>res(null))),
+    loadImg('pano/'+s.f+'_d.png').catch(()=>null)
+  ]).then(([t,d])=>{ Object.assign(views[i], build(i,t,d)); });
+  views[i]={p}; return p;
+}
+/* profondeur dans une direction monde depuis l'étape i (pour masquer les étiquettes derrière un mur) */
+function depthAt(i, wx, wz, wy){
+  const v=views[i]; if(!v || !v.depth) return FAR;
+  const s=STOPS[i], dx=wx-s.p[0], dz=wz-s.p[1];
+  const yaw = yawOf(dx,dz) - (s.phi);       /* lacet relatif au centre du panorama */
+  const u = 0.5 - wrap(yaw)/(2*Math.PI);
+  const pitch = Math.atan2(wy, Math.hypot(dx,dz));
+  const vv = 0.5 + pitch/Math.PI;
+  const iu=Math.round(u*SEG_W)%(SEG_W+1), iv=Math.round(vv*SEG_H);
+  const k=(SEG_H-iv)*(SEG_W+1)+iu;
+  return v.depth.D[k] || FAR;
+}
+
+/* ---------- État ---------- */
+let cur=0, W=0, pitch=0, fov=75, mv=null, queue=[], playing=false, idleT=0;
+const FOV0 = ()=> (canvas.clientWidth<canvas.clientHeight ? 85 : 75);
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const sstep=(a,b,t)=>{ t=Math.min(1,Math.max(0,(t-a)/(b-a))); return t*t*(3-2*t); };
+function route(a,b){ const prev=new Array(STOPS.length).fill(-1), q=[a], seen=new Set([a]);
+  while(q.length){ const n=q.shift(); if(n===b) break; for(const e of adj[n]) if(!seen.has(e.to)){ seen.add(e.to); prev[e.to]=n; q.push(e.to); } }
+  const r=[]; for(let n=b; n!==-1; n=prev[n]) r.unshift(n); return r[0]===a ? r : [a,b]; }
+function goTo(j){
+  if(mv || j===cur || j<0 || j>=STOPS.length) return;
+  hideHint();
+  const r=route(cur,j); queue=r.slice(1); step();
+}
+function step(){
+  if(!queue.length) return;
+  const j=queue.shift(), a=STOPS[cur], b=STOPS[j];
+  const e=adj[cur].find(e=>e.to===j);
+  const pts=[a.p]; if(e && e.via) pts.push(e.via); pts.push(b.p);
+  const lens=[]; let L=0; for(let k=1;k<pts.length;k++){ const l=Math.hypot(pts[k][0]-pts[k-1][0], pts[k][1]-pts[k-1][1]); lens.push(l); L+=l; }
+  const dir = (k)=> yawOf(pts[k+1][0]-pts[k][0], pts[k+1][1]-pts[k][1]);
+  mv={from:cur,to:j,pts,lens,L,W0:W,p0:pitch,f0:fov,yaws:pts.slice(0,-1).map((_,k)=>dir(k)),t0:null,dur:reduced?0.4:Math.min(2.6,Math.max(1.2,L/1.9))*1000};
+  labelEls.forEach(b=>b.hidden=true);
+  Promise.all([load(cur),load(j)]).then(()=>{ if(mv) mv.t0=performance.now(); });
+}
+function posOn(m, s){ /* s in [0,1] along polyline */
+  let d=s*m.L; for(let k=0;k<m.lens.length;k++){ if(d<=m.lens[k] || k===m.lens.length-1){ const t=m.lens[k]?Math.min(1,d/m.lens[k]):1, A=m.pts[k], B=m.pts[k+1]; return {x:A[0]+(B[0]-A[0])*t, z:A[1]+(B[1]-A[1])*t, seg:k}; } d-=m.lens[k]; }
+}
+
+/* ---------- Interface ---------- */
+const chipsEl=$('#chips'), labelsEl=$('#labels');
+STOPS.forEach((s,i)=>{ const b=document.createElement('button'); b.className='chip'; b.type='button'; b.id='chip'+i; b.textContent=(i+1)+'. '+s.n; b.onclick=()=>{ stopPlay(); goTo(i); }; chipsEl.appendChild(b); });
+const labelEls=STOPS.map((s,i)=>{ const b=document.createElement('button'); b.className='lbl'; b.type='button'; b.textContent=s.n; b.hidden=true; b.onclick=()=>{ stopPlay(); goTo(i); }; labelsEl.appendChild(b); return b; });
+const slug=i=>'#'+STOPS[i].n.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-|-$/g,'').toLowerCase();
+function updateUI(){
+  $('#step').textContent=(cur+1)+' / '+STOPS.length; $('#name').textContent=STOPS[cur].n; $('#desc').textContent=STOPS[cur].d;
+  $('#prev').disabled=cur===0; $('#next').disabled=cur===STOPS.length-1;
+  STOPS.forEach((s,i)=>{ const c=$('#chip'+i); c.classList.toggle('on',i===cur); if(i===cur) c.scrollIntoView({block:'nearest',inline:'center',behavior:reduced?'auto':'smooth'}); });
+  mapStops.forEach((g,i)=>g.querySelector('circle').setAttribute('fill', i===cur?'#ffffff':'#f8c0c5'));
+  try{ history.replaceState(null,'',slug(cur)); }catch(e){}
+  adj[cur].forEach(e=>load(e.to));
+}
+$('#prev').onclick=()=>{ stopPlay(); goTo(cur-1); };
+$('#next').onclick=()=>{ stopPlay(); goTo(cur+1); };
+$('#play').onclick=()=>{ playing ? stopPlay() : startPlay(); };
+function startPlay(){ playing=true; idleT=0; $('#play').textContent='❚❚ Pause'; hideHint(); if(cur===STOPS.length-1) goTo(0); }
+function stopPlay(){ playing=false; $('#play').textContent='▶ Visite auto'; }
+
+/* Plan miniature */
+const svg=$('#map'), NS='http://www.w3.org/2000/svg';
+const el=(n,a,p)=>{ const e=document.createElementNS(NS,n); for(const k in a) e.setAttribute(k,a[k]); (p||svg).appendChild(e); return e; };
+const ROOMS=[
+  [-3.6,-.5,0,6.9,'#b9b1ad','Rue'],[0,0,5.8,6.4,'#f8c0c5','Salle'],
+  [5.8,0,8.6,1.9,'#fde9eb','Vestiaire'],[5.8,1.9,8.6,4.6,'#fff6f6','Garnissage'],[8.6,0,9.8,4.6,'#fff6f6','Couloir propre'],
+  [9.8,0,12,1.8,'#fde9eb','Réception'],[9.8,1.8,12,3.4,'#fde9eb','Pâte, fours'],[9.8,3.4,12,4.6,'#fde9eb','Crèmes'],
+  [5.8,4.6,7.8,6.4,'#e9b4bc','Plonge'],[7.8,4.6,9.8,6.4,'#e9b4bc','Couloir sale'],[9.8,4.6,12,6.4,'#e9b4bc','Déchets']];
+ROOMS.forEach(([x0,z0,x1,z1,f,n])=>{ const r=el('rect',{x:x0,y:z0,width:x1-x0,height:z1-z0,fill:f,stroke:'#4d010a','stroke-width':.07}); el('title',{},r).textContent=n; });
+el('rect',{x:4.2,y:1.0,width:.65,height:3.8,fill:'#70020f',opacity:.85});
+[[1.55,.98],[2.45,.98],[3.35,.98],[1.4,5.42],[2.25,5.42],[3.1,5.42],[3.95,5.42]].forEach(([x,z])=>el('circle',{cx:x,cy:z,r:.3,fill:'#ffffff',opacity:.7}));
+const cone=el('path',{d:'',fill:'#ffffff',opacity:.42});
+const dot=el('circle',{r:.26,fill:'#ffffff',stroke:'#70020f','stroke-width':.08});
+const mapStops=STOPS.map((s,i)=>{ const g=el('g',{class:'stop',tabindex:'0',role:'button','aria-label':'Aller à '+s.n});
+  el('circle',{cx:s.p[0],cy:s.p[1],r:.2,fill:'#f8c0c5',stroke:'#70020f','stroke-width':.07},g); el('title',{},g).textContent=s.n;
+  g.addEventListener('click',()=>{ stopPlay(); goTo(i); }); g.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); stopPlay(); goTo(i);} }); return g; });
+function drawCone(x, z, yaw, f){
+  const a=Math.atan2(-Math.cos(yaw), -Math.sin(yaw)), half=Math.atan(Math.tan(f*Math.PI/360)*camera.aspect), R=1.7;
+  const p=t=>[x+Math.cos(t)*R, z+Math.sin(t)*R];
+  const [x1,z1]=p(a-half), [x2,z2]=p(a+half);
+  cone.setAttribute('d',`M${x} ${z} L${x1} ${z1} A${R} ${R} 0 0 1 ${x2} ${z2} Z`);
+  dot.setAttribute('cx',x); dot.setAttribute('cy',z);
+}
+
+/* ---------- Regarder autour ---------- */
+let down=null, moved=0;
+canvas.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,W,pitch}; moved=0; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove',e=>{
+  if(!down || mv) return; const dx=e.clientX-down.x, dy=e.clientY-down.y; moved=Math.max(moved,Math.hypot(dx,dy));
+  if(moved>3){ canvas.classList.add('dragging'); const k=fov*Math.PI/180/canvas.clientHeight; W=down.W+dx*k; pitch=Math.max(-1.35,Math.min(1.35,down.pitch+dy*k)); if(playing) stopPlay(); hideHint(); }
+});
+const endDrag=()=>{ down=null; canvas.classList.remove('dragging'); };
+canvas.addEventListener('pointerup',endDrag); canvas.addEventListener('pointercancel',endDrag);
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); if(mv) return; fov=Math.max(35,Math.min(95,fov+e.deltaY*.04)); },{passive:false});
+window.addEventListener('keydown',e=>{ if(e.target.closest && e.target.closest('button,[tabindex]')) return; if(mv) return;
+  if(e.key==='ArrowLeft') W+=.1; else if(e.key==='ArrowRight') W-=.1;
+  else if(e.key==='ArrowUp'){ stopPlay(); goTo(cur+1); } else if(e.key==='ArrowDown'){ stopPlay(); goTo(cur-1); } });
+let hintGone=false; function hideHint(){ if(hintGone) return; hintGone=true; $('#hint').classList.add('off'); }
+setTimeout(hideHint, 6000);
+
+/* ---------- Boucle ---------- */
+function resize(){ const w=canvas.clientWidth, h=canvas.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+window.addEventListener('resize',resize);
+const v3=new THREE.Vector3(); let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  renderer.clear();
+  if(mv && mv.t0!==null){
+    const t=Math.min(1,(now-mv.t0)/mv.dur), e=ease(t);
+    const P=posOn(mv, e);
+    /* le regard s'aligne sur la direction de marche */
+    const ty=mv.yaws[P.seg], k=sstep(0,.35,t);
+    if(mv.yaw===undefined) mv.yaw=mv.W0;
+    mv.yaw += wrap(ty-mv.yaw)*Math.min(1, dt*(reduced?20:3.2));
+    const yaw = mv.yaw;
+    camera.position.set(P.x,0,P.z); camera.rotation.set(mv.p0*(1-k),yaw,0); camera.fov=mv.f0+(FOV0()-mv.f0)*k; camera.updateProjectionMatrix();
+    const al=sstep(.3,.78,t), A=views[mv.from], B=views[mv.to];
+    renderer.render(A.scene,camera);
+    renderer.clearDepth();
+    B.mat.opacity=al; renderer.render(B.sceneT,camera);
+    drawCone(P.x,P.z,yaw,camera.fov);
+    if(t>=1){ cur=mv.to; W=yaw; pitch=0; fov=camera.fov; mv=null; idleT=0; updateUI(); if(queue.length) setTimeout(step, 60); }
+  } else if(views[cur] && views[cur].scene){
+    if(playing && !mv){ idleT+=dt; W-=dt*.16; if(idleT>8){ if(cur<STOPS.length-1) goTo(cur+1); else stopPlay(); } }
+    const s=STOPS[cur];
+    camera.position.set(s.p[0],0,s.p[1]); camera.rotation.set(pitch,W,0); camera.fov=fov; camera.updateProjectionMatrix();
+    renderer.render(views[cur].scene,camera);
+    drawCone(s.p[0],s.p[1],W,fov);
+    if(!mv){
+      const w=canvas.clientWidth, h=canvas.clientHeight;
+      labelEls.forEach((b,i)=>{ const e=adj[cur].find(e=>e.to===i); if(!e){ b.hidden=true; return; }
+        const tg=e.via||STOPS[i].p, dist=Math.hypot(tg[0]-s.p[0], tg[1]-s.p[1]), hy=1.15-EYE;
+        if(depthAt(cur,tg[0],tg[1],hy) < dist*0.8 - 0.25){ b.hidden=true; return; }
+        v3.set(tg[0], hy, tg[1]).project(camera);
+        if(v3.z>1 || Math.abs(v3.x)>.95 || Math.abs(v3.y)>.9){ b.hidden=true; return; }
+        b.hidden=false; b.style.left=((v3.x+1)/2*w)+'px'; b.style.top=((1-v3.y)/2*h)+'px'; });
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Démarrage ---------- */
+async function start(){
+  const h=location.hash; cur=Math.max(0, STOPS.findIndex((s,i)=>slug(i)===h));
+  resize(); fov=FOV0(); W=STOPS[cur].phi;
+  await load(cur);
+  updateUI(); requestAnimationFrame(frame);
+  $('#loading').classList.add('off');
+}
+start();
+})();
+</script>
+
+</body>
+</html>
